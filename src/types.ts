@@ -58,3 +58,35 @@ export interface WorldResult {
   splatUrl?: string;
   panoUrl?: string;
 }
+
+// Memory Lane types
+export interface MemoryMedia {
+  id: string;
+  type: 'image' | 'video';
+  dataUrl: string;
+  thumbnail?: string;
+  position: { x: number; y: number; z: number };
+  rotation: { x: number; y: number; z: number };
+}
+
+export interface MemoryLaneState {
+  uploadedMedia: MemoryMedia[];
+  selectedSceneIndices: number[];
+  themes: string[];
+  worldPrompt: string;
+}
+
+export type MemoryAppState =
+  | { phase: 'uploading' }
+  | { phase: 'analyzing'; media: MemoryMedia[] }
+  | { phase: 'generating'; memoryState: MemoryLaneState; prompt: string }
+  | { phase: 'polling'; memoryState: MemoryLaneState; prompt: string; operationId: string }
+  | {
+      phase: 'displaying';
+      memoryState: MemoryLaneState;
+      marbleUrl: string;
+      caption: string;
+      thumbnailUrl?: string;
+      splatUrl?: string;
+      panoUrl?: string;
+    };

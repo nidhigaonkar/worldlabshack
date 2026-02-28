@@ -57,6 +57,54 @@ export async function generateWorld(prompt: string): Promise<string> {
   return operationId;
 }
 
+export async function generateWorldFromImages(
+  imageDataUrls: string[],
+  textPrompt: string
+): Promise<string> {
+  const imagePrompts = imageDataUrls.map(dataUrl => ({
+    image: dataUrl,
+  }));
+
+  const body = {
+    display_name: textPrompt.slice(0, 60),
+    world_prompt: {
+      type: 'image',
+      image_prompts: imagePrompts,
+      text_prompt: textPrompt,
+    },
+    model: 'Marble 0.1-mini',
+    permission: { public: true },
+  };
+
+  console.log('[World Labs] POST worlds:generate with images', {
+    imageCount: imageDataUrls.length,
+    textPrompt: textPrompt.slice(0, 100),
+  });
+
+  const res = await fetch('/api/wl/marble/v1/worlds:generate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'WLT-Api-Key': API_KEY,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    console.error('[World Labs] Image API Error:', { status: res.status, body: text });
+    
+    console.log('[World Labs] Falling back to text-only generation...');
+    return generateWorld(textPrompt);
+  }
+
+  const data = await res.json();
+  const operationId: string = data.operation_id ?? data.name?.split('/').pop();
+  if (!operationId) throw new Error('No operation_id in response');
+  console.log('[World Labs] operation_id (image-based):', operationId);
+  return operationId;
+}
+
 export async function pollOperation(
   operationId: string,
   onProgress?: (attempt: number) => void,

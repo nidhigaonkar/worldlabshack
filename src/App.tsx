@@ -9,10 +9,76 @@ import { LoadingState } from './components/LoadingState';
 import { WorldViewer } from './components/WorldViewer';
 import { EscapeComplete } from './components/AdventureComplete';
 import { TransitionState } from './components/TransitionState';
+import { MemoryLaneApp } from './components/MemoryLaneApp';
 
 const MAX_WORLDS = 3;
 const KEYS_PER_WORLD = 1;
 const KEYS_REQUIRED_TO_WIN = 3;
+
+type AppMode = 'select' | 'escape' | 'memory';
+
+function ModeSelector({ onSelectMode }: { onSelectMode: (mode: 'escape' | 'memory') => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-screen bg-reverie-black px-6 py-12 animate-fade-in">
+      <div className="mb-12 text-center">
+        <h1 className="text-5xl font-extralight tracking-[0.3em] text-white uppercase mb-3">
+          REVERIE
+        </h1>
+        <p className="text-reverie-muted text-sm tracking-widest uppercase">
+          Choose Your Experience
+        </p>
+      </div>
+
+      <div className="flex flex-col sm:flex-row gap-6 max-w-3xl">
+        {/* Escape Room Mode */}
+        <button
+          onClick={() => onSelectMode('escape')}
+          className="group flex-1 bg-reverie-surface border-2 border-reverie-border hover:border-purple-500 rounded-2xl p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-purple-500/20"
+        >
+          <div className="text-6xl mb-4">🔮</div>
+          <h2 className="text-2xl font-light text-white tracking-wider mb-2 group-hover:text-purple-300 transition-colors">
+            Escape Room
+          </h2>
+          <p className="text-reverie-muted text-sm leading-relaxed">
+            Explore AI-generated dimensional rooms. Collect keys to unlock portals and escape through surreal worlds.
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-2 text-purple-400 text-xs tracking-wider uppercase">
+            <span>3 Rooms</span>
+            <span>•</span>
+            <span>Collect Keys</span>
+            <span>•</span>
+            <span>Escape</span>
+          </div>
+        </button>
+
+        {/* Memory Lane Mode */}
+        <button
+          onClick={() => onSelectMode('memory')}
+          className="group flex-1 bg-reverie-surface border-2 border-reverie-border hover:border-amber-500 rounded-2xl p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-amber-500/20"
+        >
+          <div className="text-6xl mb-4">🌟</div>
+          <h2 className="text-2xl font-light text-white tracking-wider mb-2 group-hover:text-amber-300 transition-colors">
+            Memory Lane
+          </h2>
+          <p className="text-reverie-muted text-sm leading-relaxed">
+            Upload your photos and videos. Walk through a personalized 3D world built from your memories.
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-2 text-amber-400 text-xs tracking-wider uppercase">
+            <span>Upload Media</span>
+            <span>•</span>
+            <span>AI World</span>
+            <span>•</span>
+            <span>Relive</span>
+          </div>
+        </button>
+      </div>
+
+      <p className="mt-12 text-reverie-border text-xs text-center max-w-md">
+        Powered by World Labs Marble AI for spatial world generation
+      </p>
+    </div>
+  );
+}
 
 function generateKeysForWorld(worldNumber: number): KeyData[] {
   const colors: ('gold' | 'silver' | 'bronze')[] = ['gold', 'silver', 'bronze'];
@@ -46,6 +112,7 @@ function generateKeysForWorld(worldNumber: number): KeyData[] {
 }
 
 export default function App() {
+  const [mode, setMode] = useState<AppMode>('select');
   const [state, setState] = useState<AppState>({ phase: 'picking_interests' });
   const [pollAttempt, setPollAttempt] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +120,29 @@ export default function App() {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const audioEngineRef = useRef<AudioEngine | null>(null);
+
+  // If in memory mode, render the Memory Lane app
+  if (mode === 'memory') {
+    return (
+      <>
+        <MemoryLaneApp />
+        <button
+          onClick={() => setMode('select')}
+          className="fixed bottom-6 left-6 z-50 flex items-center gap-2 bg-reverie-surface/80 backdrop-blur-sm border border-reverie-border rounded-full px-4 py-2 hover:border-reverie-accent hover:text-white transition-colors"
+        >
+          <svg className="w-4 h-4 text-reverie-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 12H5M12 19l-7-7 7-7" />
+          </svg>
+          <span className="text-reverie-muted text-xs tracking-wider">Back to Menu</span>
+        </button>
+      </>
+    );
+  }
+
+  // If in select mode, show mode selector
+  if (mode === 'select') {
+    return <ModeSelector onSelectMode={(m) => setMode(m)} />;
+  }
 
   function stopAudio() {
     audioEngineRef.current?.stop();

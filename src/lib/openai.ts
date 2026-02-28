@@ -97,6 +97,108 @@ Write 2-3 sentences, around 40-60 words:`;
   return description;
 }
 
+export interface SceneSelectionResult {
+  selectedIndices: number[];
+  themes: string[];
+  worldPrompt: string;
+}
+
+export async function selectSceneImages(
+  images: { dataUrl: string; filename: string }[]
+): Promise<SceneSelectionResult> {
+  console.log('[OpenAI] Analyzing', images.length, 'images for scene selection...');
+
+  const imageContents = images.map((img, index) => ({
+    type: 'image_url' as const,
+    image_url: {
+      url: img.dataUrl,
+      detail: 'low' as const,
+    },
+  }));
+
+  const prompt = `You are analyzing ${images.length} personal photos to create a 3D memory world.
+
+TASK 1: Select 2-4 images that show clear SCENES or ENVIRONMENTS:
+- Good: rooms, parks, beaches, landscapes, buildings, streets, nature views
+- Avoid: selfies, close-up portraits, food close-ups, blurry images, text/screenshots
+
+TASK 2: Identify 3-5 emotional themes from all the photos (e.g., "family gatherings", "outdoor adventures", "cozy home moments", "travel memories")
+
+TASK 3: Write a brief world description (30-50 words) that captures the essence of these memories for 3D world generation. Focus on atmosphere, lighting, and spatial elements.
+
+Respond ONLY with valid JSON in this exact format:
+{
+  "selectedIndices": [0, 2, 5],
+  "themes": ["family love", "nature adventures", "cozy evenings"],
+  "worldPrompt": "A warm, nostalgic hallway connecting intimate memory spaces. Soft golden hour lighting filters through, with personal photographs adorning the walls. The atmosphere feels like walking through cherished moments frozen in time."
+}
+
+Image indices are 0-based (0 to ${images.length - 1}).`;
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${API_KEY}`,
+    },
+    body: JSON.stringify({
+      model: 'gpt-4o-mini',
+      max_tokens: 500,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            ...imageContents,
+          ],
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`OpenAI Vision API failed (${res.status}): ${text}`);
+  }
+
+  const data = await res.json();
+  const content = data.choices?.[0]?.message?.content?.trim() ?? '';
+  
+  console.log('[OpenAI] Vision response:', content);
+
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('No JSON found in response');
+    
+    const parsed = JSON.parse(jsonMatch[0]) as SceneSelectionResult;
+    
+    if (!Array.isArray(parsed.selectedIndices) || parsed.selectedIndices.length === 0) {
+      parsed.selectedIndices = [0];
+    }
+    parsed.selectedIndices = parsed.selectedIndices.filter(
+      (i: number) => i >= 0 && i < images.length
+    );
+    
+    if (!Array.isArray(parsed.themes) || parsed.themes.length === 0) {
+      parsed.themes = ['personal memories'];
+    }
+    
+    if (!parsed.worldPrompt || typeof parsed.worldPrompt !== 'string') {
+      parsed.worldPrompt = 'A nostalgic memory space filled with warm lighting and personal photographs.';
+    }
+
+    console.log('[OpenAI] Scene selection result:', parsed);
+    return parsed;
+  } catch (parseErr) {
+    console.warn('[OpenAI] Failed to parse response, using defaults:', parseErr);
+    return {
+      selectedIndices: [0],
+      themes: ['personal memories'],
+      worldPrompt: 'A nostalgic memory space filled with warm lighting and personal photographs adorning the walls.',
+    };
+  }
+}
+
 export async function getSoundPrompt(caption: string): Promise<string> {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
