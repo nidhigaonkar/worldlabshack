@@ -1,0 +1,52 @@
+@import "tailwindcss";
+
+@theme {
+  --color-reverie-black: #080810;
+  --color-reverie-surface: #12121f;
+  --color-reverie-border: #1e1e35;
+  --color-reverie-muted: #6b6b8a;
+  --color-reverie-accent: #7c6df5;
+  --color-reverie-glow: #a394ff;
+
+  --animate-fade-in: fade-in 0.4s ease-out;
+  --animate-pulse-bar: pulse-bar 1.2s ease-in-out infinite;
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-spin: spin 1s linear infinite;
+}
+
+@keyframes fade-in {
+  0% { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-bar {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  background-color: #080810;
+  color: white;
+  font-family: system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
