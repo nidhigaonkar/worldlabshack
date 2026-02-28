@@ -101,8 +101,7 @@ export function MemoryWorldViewer({
       {/* Timeless HUD - Top Bar */}
       <div className="fixed top-6 left-6 right-6 flex items-center justify-between pointer-events-none">
         {/* Title */}
-        <div className="pointer-events-auto flex items-center gap-3 bg-reverie-surface/80 backdrop-blur-sm border border-reverie-border rounded-full px-4 py-2">
-          <span className="text-2xl">🌟</span>
+        <div className="pointer-events-auto flex items-center bg-reverie-surface/80 backdrop-blur-sm border border-reverie-border rounded-full px-4 py-2">
           <span className="text-white text-sm tracking-wider font-medium">
             Timeless
           </span>

@@ -153,26 +153,42 @@ export function MemorySplatViewer({ splatUrl, memories, handTrackingRef, resetVi
         return x - Math.floor(x);
       }
       
+      const START_POSITION = { x: 0, y: 0, z: 3 };
+      const MIN_DISTANCE_FROM_START = 4.5;
+
       const positionedMemories = memoriesRef.current.map((mem, index) => {
         // Random angle anywhere in 360 degrees
         const angle = seededRandom(index * 7 + 1) * Math.PI * 2;
         
-        // Random radius between 2 and 6 units from center
-        const radius = 2 + seededRandom(index * 13 + 2) * 4;
+        // Random radius between 4 and 8 units from center
+        const radius = 4 + seededRandom(index * 13 + 2) * 4;
         
         // Random height between -1 and 1.5
         const height = -1 + seededRandom(index * 17 + 3) * 2.5;
         
         // Calculate position
-        const x = Math.sin(angle) * radius;
-        const z = Math.cos(angle) * radius;
+        let x = Math.sin(angle) * radius;
+        let z = Math.cos(angle) * radius;
+        let y = height;
+
+        // Keep frames away from initial camera spawn so users explore first.
+        const dx = x - START_POSITION.x;
+        const dy = y - START_POSITION.y;
+        const dz = z - START_POSITION.z;
+        const distanceFromStart = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (distanceFromStart < MIN_DISTANCE_FROM_START) {
+          const scale = MIN_DISTANCE_FROM_START / Math.max(distanceFromStart, 0.001);
+          x = START_POSITION.x + dx * scale;
+          y = START_POSITION.y + dy * scale;
+          z = START_POSITION.z + dz * scale;
+        }
         
         // Face toward center so user can see the frame
         const faceAngle = Math.atan2(-x, -z);
         
         return {
           ...mem,
-          position: { x, y: height, z },
+          position: { x, y, z },
           rotation: { x: 0, y: faceAngle, z: 0 },
         };
       });

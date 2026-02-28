@@ -189,7 +189,7 @@ export function useHandTracking() {
           state.moveX = 0;
           state.moveZ = 0;
           state.moveY = 0;
-          state.lookYawSpeed = mapToMovement(tipX) * LOOK_SPEED_MULTIPLIER;
+          state.lookYawSpeed = -mapToMovement(tipX) * LOOK_SPEED_MULTIPLIER;
           state.lookPitchSpeed = -mapToMovement(tipY) * LOOK_SPEED_MULTIPLIER;
           break;
         }
@@ -206,7 +206,7 @@ export function useHandTracking() {
           state.moveZ = 0;
           state.moveY = 0;
           // Pinch = turn/drag: use palm position to rotate view
-          state.lookYawSpeed = mapToMovement(palmX) * LOOK_SPEED_MULTIPLIER;
+          state.lookYawSpeed = -mapToMovement(palmX) * LOOK_SPEED_MULTIPLIER;
           state.lookPitchSpeed = -mapToMovement(palmY) * LOOK_SPEED_MULTIPLIER;
           break;
         }
