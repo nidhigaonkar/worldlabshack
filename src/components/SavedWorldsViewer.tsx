@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { getSavedWorlds, type SavedWorld } from '../lib/worldlabs';
 import { SplatViewer } from './SplatViewer';
+import { MemorySplatViewer } from './MemorySplatViewer';
+import type { MemoryMedia } from '../types';
 
 interface Props {
   onClose: () => void;
@@ -57,9 +59,24 @@ export function SavedWorldsViewer({ onClose }: Props) {
   }
 
   if (viewingInBrowser && currentWorld.splatUrl) {
+    const hasMemories = currentWorld.memoryImages && currentWorld.memoryImages.length > 0;
+    const memories: MemoryMedia[] = (currentWorld.memoryImages || []).map((dataUrl, i) => ({
+      id: `saved-${i}`,
+      type: 'image' as const,
+      dataUrl,
+      position: { x: 0, y: 0, z: 0 },
+      rotation: { x: 0, y: 0, z: 0 },
+    }));
+
     return (
       <div className="fixed inset-0 bg-reverie-black z-50">
-        <SplatViewer splatUrl={currentWorld.splatUrl} showPortal={false} keys={[]} />
+        {hasMemories ? (
+          <div className="absolute inset-0">
+            <MemorySplatViewer splatUrl={currentWorld.splatUrl} memories={memories} />
+          </div>
+        ) : (
+          <SplatViewer splatUrl={currentWorld.splatUrl} showPortal={false} keys={[]} />
+        )}
         <button
           onClick={() => setViewingInBrowser(false)}
           className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg bg-reverie-surface/90 backdrop-blur-sm border border-reverie-border text-white hover:border-reverie-accent transition-colors"
@@ -117,6 +134,25 @@ export function SavedWorldsViewer({ onClose }: Props) {
             />
           )}
           
+          {/* Memory images row */}
+          {currentWorld.memoryImages && currentWorld.memoryImages.length > 0 && (
+            <div className="w-full">
+              <p className="text-amber-400 text-xs tracking-wider uppercase mb-2 text-center">
+                {currentWorld.memoryImages.length} memories in this world
+              </p>
+              <div className="flex gap-2 justify-center flex-wrap">
+                {currentWorld.memoryImages.map((dataUrl, i) => (
+                  <img
+                    key={i}
+                    src={dataUrl}
+                    alt={`Memory ${i + 1}`}
+                    className="w-16 h-16 object-cover rounded-lg border border-amber-600/40"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="text-center">
             <p className="text-white text-sm leading-relaxed mb-2">
               {currentWorld.prompt}

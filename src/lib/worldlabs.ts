@@ -11,6 +11,7 @@ export interface SavedWorld {
   thumbnailUrl?: string;
   splatUrl?: string;
   panoUrl?: string;
+  memoryImages?: string[];
 }
 
 function saveWorldToStorage(world: SavedWorld) {
@@ -188,6 +189,7 @@ export async function pollOperation(
   operationId: string,
   onProgress?: (attempt: number) => void,
   originalPrompt?: string,
+  memoryImages?: string[],
 ): Promise<WorldResult> {
   const MAX_ATTEMPTS = 60;
   const INTERVAL_MS = 3000;
@@ -237,6 +239,7 @@ export async function pollOperation(
         thumbnailUrl,
         splatUrl,
         panoUrl,
+        memoryImages,
       });
       
       return { marbleUrl, caption, thumbnailUrl, splatUrl, panoUrl };

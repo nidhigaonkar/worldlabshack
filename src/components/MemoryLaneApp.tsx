@@ -74,9 +74,12 @@ export function MemoryLaneApp() {
 
       setState({ phase: 'polling', memoryState, prompt, operationId });
 
+      // Pass all uploaded image data URLs so they get saved with the world
+      const allImageDataUrls = media.map(m => m.dataUrl);
+
       const result = await pollOperation(operationId, (attempt) => {
         setPollAttempt(attempt);
-      }, prompt);
+      }, prompt, allImageDataUrls);
 
       setState({
         phase: 'displaying',
