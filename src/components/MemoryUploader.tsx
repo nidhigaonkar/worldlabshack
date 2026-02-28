@@ -3,9 +3,8 @@ import { useState, useCallback, useRef } from 'react';
 export interface UploadedMedia {
   id: string;
   file: File;
-  type: 'image' | 'video';
+  type: 'image';
   dataUrl: string;
-  thumbnail?: string;
 }
 
 interface Props {
@@ -20,26 +19,17 @@ export function MemoryUploader({ onComplete, isAnalyzing = false }: Props) {
 
   const processFiles = useCallback(async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
-    const validFiles = fileArray.filter(f => 
-      f.type.startsWith('image/') || f.type.startsWith('video/')
-    );
+    const validFiles = fileArray.filter(f => f.type.startsWith('image/'));
 
     const newUploads: UploadedMedia[] = await Promise.all(
       validFiles.map(async (file) => {
         const dataUrl = await readFileAsDataUrl(file);
-        const type = file.type.startsWith('video/') ? 'video' : 'image';
-        
-        let thumbnail = dataUrl;
-        if (type === 'video') {
-          thumbnail = await generateVideoThumbnail(file);
-        }
 
         return {
           id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
           file,
-          type,
+          type: 'image' as const,
           dataUrl,
-          thumbnail,
         };
       })
     );
@@ -82,20 +72,19 @@ export function MemoryUploader({ onComplete, isAnalyzing = false }: Props) {
   }, [uploads, onComplete]);
 
   const canContinue = uploads.length >= 3;
-  const imageCount = uploads.filter(u => u.type === 'image').length;
-  const videoCount = uploads.filter(u => u.type === 'video').length;
+  const imageCount = uploads.length;
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-reverie-black px-6 py-12 animate-fade-in">
       <div className="mb-8 text-center">
         <h1 className="text-5xl font-extralight tracking-[0.3em] text-white uppercase mb-3">
-          MEMORY LANE
+          TIMELESS
         </h1>
         <p className="text-reverie-muted text-sm tracking-widest uppercase mb-2">
-          Walk Through Your Memories
+          A Walk Down Memory Lane
         </p>
         <p className="text-reverie-accent text-xs tracking-wider">
-          Upload at least 3 photos or videos from your camera roll
+          Upload at least 3 photos from your camera roll
         </p>
       </div>
 
@@ -120,7 +109,7 @@ export function MemoryUploader({ onComplete, isAnalyzing = false }: Props) {
         </div>
         <div className="text-center">
           <p className="text-white text-lg font-medium mb-1">
-            {isDragging ? 'Drop your memories here!' : 'Drag & drop your photos and videos'}
+            {isDragging ? 'Drop your memories here!' : 'Drag & drop your photos'}
           </p>
           <p className="text-reverie-muted text-sm">
             or click to browse
@@ -130,7 +119,7 @@ export function MemoryUploader({ onComplete, isAnalyzing = false }: Props) {
           ref={fileInputRef}
           type="file"
           multiple
-          accept="image/*,video/*"
+          accept="image/*"
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -141,7 +130,7 @@ export function MemoryUploader({ onComplete, isAnalyzing = false }: Props) {
         <div className="w-full max-w-4xl mt-8">
           <div className="flex items-center justify-between mb-4">
             <p className="text-reverie-muted text-sm">
-              {imageCount} photo{imageCount !== 1 ? 's' : ''}, {videoCount} video{videoCount !== 1 ? 's' : ''}
+              {imageCount} photo{imageCount !== 1 ? 's' : ''}
             </p>
             <button
               onClick={() => setUploads([])}
@@ -157,19 +146,10 @@ export function MemoryUploader({ onComplete, isAnalyzing = false }: Props) {
                 className="relative aspect-square rounded-xl overflow-hidden group border border-reverie-border"
               >
                 <img
-                  src={upload.thumbnail || upload.dataUrl}
+                  src={upload.dataUrl}
                   alt="Upload preview"
                   className="w-full h-full object-cover"
                 />
-                {upload.type === 'video' && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white ml-0.5" viewBox="0 0 24 24" fill="currentColor">
-                        <polygon points="5 3 19 12 5 21 5 3" />
-                      </svg>
-                    </div>
-                  </div>
-                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -223,14 +203,14 @@ export function MemoryUploader({ onComplete, isAnalyzing = false }: Props) {
             <span className="text-lg">🌟</span> How It Works
           </p>
           <p className="text-reverie-border text-xs leading-relaxed">
-            Upload your favorite photos and videos. Our AI will analyze them to find the best
+            Upload your favorite photos. Our AI will analyze them to find the best
             <span className="text-purple-400 font-medium"> scene images</span> (rooms, parks, landscapes)
             to create your personalized 3D memory world.
             <br />
-            Then explore and <span className="text-blue-400">click on memory frames</span> to replay your videos!
+            Then explore and <span className="text-blue-400">view your memories</span> displayed throughout the world!
           </p>
           <p className="text-reverie-muted text-[10px] tracking-wider uppercase mt-2">
-            Use WASD to move • Mouse to look • Click frames to play memories
+            Use WASD to move • Mouse to look around
           </p>
         </div>
       </div>
@@ -244,34 +224,5 @@ function readFileAsDataUrl(file: File): Promise<string> {
     reader.onload = () => resolve(reader.result as string);
     reader.onerror = reject;
     reader.readAsDataURL(file);
-  });
-}
-
-function generateVideoThumbnail(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-    video.muted = true;
-    video.playsInline = true;
-
-    video.onloadeddata = () => {
-      video.currentTime = Math.min(1, video.duration / 2);
-    };
-
-    video.onseeked = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx?.drawImage(video, 0, 0);
-      resolve(canvas.toDataURL('image/jpeg', 0.8));
-      URL.revokeObjectURL(video.src);
-    };
-
-    video.onerror = () => {
-      resolve('');
-    };
-
-    video.src = URL.createObjectURL(file);
   });
 }

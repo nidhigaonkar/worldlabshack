@@ -6,14 +6,12 @@ import type { MemoryMedia } from '../types';
 interface Props {
   splatUrl: string;
   memories: MemoryMedia[];
-  onMemoryClick?: (memoryId: string) => void;
 }
 
-export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) {
+export function MemorySplatViewer({ splatUrl, memories }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const memoriesRef = useRef(memories);
-  const activeVideoRef = useRef<{ id: string; video: HTMLVideoElement; mesh: THREE.Mesh } | null>(null);
 
   useEffect(() => {
     memoriesRef.current = memories;
@@ -61,17 +59,18 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
       const mouse = new THREE.Vector2();
 
       // Create memory frames
-      const memoryFrames: Map<string, { group: THREE.Group; isVideo: boolean; videoElement?: HTMLVideoElement }> = new Map();
+      const memoryFrames: Map<string, THREE.Group> = new Map();
 
       function createMemoryFrame(memory: MemoryMedia): THREE.Group {
         const group = new THREE.Group();
         group.position.set(memory.position.x, memory.position.y, memory.position.z);
         group.rotation.set(memory.rotation.x, memory.rotation.y, memory.rotation.z);
 
-        const frameWidth = 1.2;
-        const frameHeight = 0.9;
-        const frameDepth = 0.05;
-        const borderWidth = 0.06;
+        // Smaller frames that fit inside the world
+        const frameWidth = 0.6;
+        const frameHeight = 0.45;
+        const frameDepth = 0.02;
+        const borderWidth = 0.03;
 
         // Frame border (gold/wooden look)
         const frameMaterial = new THREE.MeshBasicMaterial({
@@ -102,39 +101,15 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
         rightMesh.position.x = frameWidth / 2 + borderWidth / 2;
         group.add(rightMesh);
 
-        // Image/video plane
+        // Image plane
         const planeGeo = new THREE.PlaneGeometry(frameWidth, frameHeight);
         
-        let texture: THREE.Texture;
-        let videoElement: HTMLVideoElement | undefined;
-
-        if (memory.type === 'video') {
-          videoElement = document.createElement('video');
-          videoElement.src = memory.dataUrl;
-          videoElement.loop = true;
-          videoElement.muted = false;
-          videoElement.playsInline = true;
-          videoElement.crossOrigin = 'anonymous';
-          
-          // Use thumbnail initially
-          if (memory.thumbnail) {
-            const img = new Image();
-            img.src = memory.thumbnail;
-            texture = new THREE.Texture(img);
-            img.onload = () => {
-              texture.needsUpdate = true;
-            };
-          } else {
-            texture = new THREE.VideoTexture(videoElement);
-          }
-        } else {
-          const img = new Image();
-          img.src = memory.dataUrl;
-          texture = new THREE.Texture(img);
-          img.onload = () => {
-            texture.needsUpdate = true;
-          };
-        }
+        const img = new Image();
+        img.src = memory.dataUrl;
+        const texture = new THREE.Texture(img);
+        img.onload = () => {
+          texture.needsUpdate = true;
+        };
 
         const planeMaterial = new THREE.MeshBasicMaterial({
           map: texture,
@@ -145,83 +120,69 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
         planeMesh.userData.memoryId = memory.id;
         group.add(planeMesh);
 
-        // Glow effect for videos
-        if (memory.type === 'video') {
-          const glowGeo = new THREE.PlaneGeometry(frameWidth + 0.2, frameHeight + 0.2);
-          const glowMaterial = new THREE.MeshBasicMaterial({
-            color: 0x8b5cf6,
-            transparent: true,
-            opacity: 0.3,
-            side: THREE.DoubleSide,
-          });
-          const glowMesh = new THREE.Mesh(glowGeo, glowMaterial);
-          glowMesh.position.z = -0.02;
-          glowMesh.name = 'glow';
-          group.add(glowMesh);
-
-          // Play icon overlay
-          const playIconGeo = new THREE.CircleGeometry(0.15, 32);
-          const playIconMaterial = new THREE.MeshBasicMaterial({
-            color: 0xffffff,
-            transparent: true,
-            opacity: 0.8,
-          });
-          const playIcon = new THREE.Mesh(playIconGeo, playIconMaterial);
-          playIcon.position.z = 0.01;
-          playIcon.name = 'playIcon';
-          group.add(playIcon);
-        }
+        // Subtle glow behind frame
+        const glowGeo = new THREE.PlaneGeometry(frameWidth + 0.1, frameHeight + 0.1);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: 0xffd700,
+          transparent: true,
+          opacity: 0.2,
+          side: THREE.DoubleSide,
+        });
+        const glowMesh = new THREE.Mesh(glowGeo, glowMaterial);
+        glowMesh.position.z = -0.01;
+        glowMesh.name = 'glow';
+        group.add(glowMesh);
 
         // Point light for ambient glow
-        const frameLight = new THREE.PointLight(
-          memory.type === 'video' ? 0x8b5cf6 : 0xffd700,
-          1,
-          3
-        );
-        frameLight.position.set(0, 0, 0.5);
+        const frameLight = new THREE.PointLight(0xffd700, 0.5, 2);
+        frameLight.position.set(0, 0, 0.3);
         group.add(frameLight);
 
         return group;
       }
 
-      // Position memories in a semicircle around the user
+      // Position memories randomly spread throughout the world
+      // Use seeded random based on index for consistent placement
+      function seededRandom(seed: number) {
+        const x = Math.sin(seed * 9999) * 10000;
+        return x - Math.floor(x);
+      }
+      
       const positionedMemories = memoriesRef.current.map((mem, index) => {
-        const total = memoriesRef.current.length;
-        const angleSpread = Math.PI * 0.8;
-        const angle = -angleSpread / 2 + (angleSpread * index) / Math.max(total - 1, 1);
-        const radius = 3;
-        const heightVariation = (index % 2) * 0.3 - 0.15;
+        // Random angle anywhere in 360 degrees
+        const angle = seededRandom(index * 7 + 1) * Math.PI * 2;
+        
+        // Random radius between 2 and 6 units from center
+        const radius = 2 + seededRandom(index * 13 + 2) * 4;
+        
+        // Random height between -1 and 1.5
+        const height = -1 + seededRandom(index * 17 + 3) * 2.5;
+        
+        // Calculate position
+        const x = Math.sin(angle) * radius;
+        const z = Math.cos(angle) * radius;
+        
+        // Face toward center so user can see the frame
+        const faceAngle = Math.atan2(-x, -z);
         
         return {
           ...mem,
-          position: {
-            x: Math.sin(angle) * radius,
-            y: 0.5 + heightVariation,
-            z: -Math.cos(angle) * radius,
-          },
-          rotation: {
-            x: 0,
-            y: angle + Math.PI,
-            z: 0,
-          },
+          position: { x, y: height, z },
+          rotation: { x: 0, y: faceAngle, z: 0 },
         };
       });
 
       positionedMemories.forEach(memory => {
         const frame = createMemoryFrame(memory);
-        memoryFrames.set(memory.id, {
-          group: frame,
-          isVideo: memory.type === 'video',
-        });
+        memoryFrames.set(memory.id, frame);
         scene.add(frame);
       });
 
-      console.log(`[MemorySplatViewer] Added ${memoryFrames.size} memory frames`);
+      console.log(`[MemorySplatViewer] Added ${memoryFrames.size} memory frames at positions:`, 
+        positionedMemories.map(m => m.position));
 
       // Camera controls
       let isDragging = false;
-      let wasClick = false;
-      let clickStartTime = 0;
       let prevX = 0;
       let prevY = 0;
       let yaw = 0;
@@ -243,8 +204,6 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
 
       function onPointerDown(e: PointerEvent) {
         isDragging = true;
-        wasClick = true;
-        clickStartTime = Date.now();
         prevX = e.clientX;
         prevY = e.clientY;
       }
@@ -254,10 +213,6 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
         const dx = e.clientX - prevX;
         const dy = e.clientY - prevY;
         
-        if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-          wasClick = false;
-        }
-        
         yaw += dx * 0.003;
         pitch -= dy * 0.003;
         pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
@@ -266,109 +221,8 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
         updateCamera();
       }
 
-      function onPointerUp(e: PointerEvent) {
-        const clickDuration = Date.now() - clickStartTime;
-        
-        if (wasClick && clickDuration < 300) {
-          mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
-          mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
-          raycaster.setFromCamera(mouse, camera);
-          
-          // Check for memory frame clicks
-          const allFrameGroups = Array.from(memoryFrames.values()).map(f => f.group);
-          const intersects = raycaster.intersectObjects(allFrameGroups, true);
-          
-          if (intersects.length > 0) {
-            const clickedObject = intersects[0].object;
-            const memoryId = clickedObject.userData.memoryId || 
-                            clickedObject.parent?.children.find(c => c.userData.memoryId)?.userData.memoryId;
-            
-            if (memoryId) {
-              handleMemoryClick(memoryId);
-            }
-          }
-        }
-        
+      function onPointerUp() {
         isDragging = false;
-        wasClick = false;
-      }
-
-      function handleMemoryClick(memoryId: string) {
-        const frameData = memoryFrames.get(memoryId);
-        if (!frameData) return;
-
-        const memory = positionedMemories.find(m => m.id === memoryId);
-        if (!memory) return;
-
-        console.log('[MemorySplatViewer] Memory clicked:', memoryId, memory.type);
-        onMemoryClick?.(memoryId);
-
-        if (memory.type === 'video') {
-          // Toggle video playback
-          if (activeVideoRef.current?.id === memoryId) {
-            // Stop current video
-            activeVideoRef.current.video.pause();
-            activeVideoRef.current = null;
-            
-            // Restore thumbnail
-            const plane = frameData.group.getObjectByName('memoryPlane') as THREE.Mesh;
-            if (plane && memory.thumbnail) {
-              const img = new Image();
-              img.src = memory.thumbnail;
-              const texture = new THREE.Texture(img);
-              img.onload = () => {
-                texture.needsUpdate = true;
-                (plane.material as THREE.MeshBasicMaterial).map = texture;
-                (plane.material as THREE.MeshBasicMaterial).needsUpdate = true;
-              };
-            }
-            
-            // Show play icon
-            const playIcon = frameData.group.getObjectByName('playIcon');
-            if (playIcon) playIcon.visible = true;
-          } else {
-            // Stop any existing video
-            if (activeVideoRef.current) {
-              activeVideoRef.current.video.pause();
-              const prevFrame = memoryFrames.get(activeVideoRef.current.id);
-              if (prevFrame) {
-                const playIcon = prevFrame.group.getObjectByName('playIcon');
-                if (playIcon) playIcon.visible = true;
-              }
-            }
-
-            // Start new video
-            const videoElement = document.createElement('video');
-            videoElement.src = memory.dataUrl;
-            videoElement.loop = true;
-            videoElement.muted = false;
-            videoElement.playsInline = true;
-            
-            const videoTexture = new THREE.VideoTexture(videoElement);
-            videoTexture.minFilter = THREE.LinearFilter;
-            videoTexture.magFilter = THREE.LinearFilter;
-
-            const plane = frameData.group.getObjectByName('memoryPlane') as THREE.Mesh;
-            if (plane) {
-              (plane.material as THREE.MeshBasicMaterial).map = videoTexture;
-              (plane.material as THREE.MeshBasicMaterial).needsUpdate = true;
-            }
-
-            videoElement.play().catch(err => {
-              console.warn('[MemorySplatViewer] Video play failed:', err);
-            });
-
-            activeVideoRef.current = {
-              id: memoryId,
-              video: videoElement,
-              mesh: plane,
-            };
-
-            // Hide play icon
-            const playIcon = frameData.group.getObjectByName('playIcon');
-            if (playIcon) playIcon.visible = false;
-          }
-        }
       }
 
       function onWheel(e: WheelEvent) {
@@ -408,6 +262,12 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
       window.addEventListener('resize', onResize);
 
       let time = 0;
+      const basePositions = new Map<string, number>();
+      
+      // Store base Y positions for animation
+      for (const [id, frame] of memoryFrames) {
+        basePositions.set(id, frame.position.y);
+      }
       
       function animate() {
         if (disposed) return;
@@ -437,27 +297,19 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
           updateCamera();
         }
 
-        // Animate memory frames
-        for (const [, frameData] of memoryFrames) {
-          // Subtle float animation
-          frameData.group.position.y += Math.sin(time * 1.5) * 0.0005;
+        // Animate memory frames - gentle float
+        let i = 0;
+        for (const [id, frame] of memoryFrames) {
+          const baseY = basePositions.get(id) || 0;
+          frame.position.y = baseY + Math.sin(time * 1.2 + i * 0.5) * 0.03;
           
-          // Pulse glow for videos
-          if (frameData.isVideo) {
-            const glow = frameData.group.getObjectByName('glow') as THREE.Mesh;
-            if (glow) {
-              const mat = glow.material as THREE.MeshBasicMaterial;
-              mat.opacity = 0.2 + Math.sin(time * 2) * 0.1;
-            }
+          // Pulse glow
+          const glow = frame.getObjectByName('glow') as THREE.Mesh;
+          if (glow) {
+            const mat = glow.material as THREE.MeshBasicMaterial;
+            mat.opacity = 0.15 + Math.sin(time * 2 + i) * 0.05;
           }
-        }
-
-        // Update video texture if playing
-        if (activeVideoRef.current) {
-          const videoTexture = (activeVideoRef.current.mesh.material as THREE.MeshBasicMaterial).map;
-          if (videoTexture) {
-            videoTexture.needsUpdate = true;
-          }
+          i++;
         }
 
         renderer.render(scene, camera);
@@ -475,17 +327,11 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
         window.removeEventListener('keyup', onKeyUp);
         window.removeEventListener('resize', onResize);
         
-        // Stop any playing video
-        if (activeVideoRef.current) {
-          activeVideoRef.current.video.pause();
-          activeVideoRef.current.video.src = '';
-        }
-        
         splatMesh.dispose();
         
         // Cleanup frames
-        for (const [, frameData] of memoryFrames) {
-          frameData.group.traverse((obj) => {
+        for (const [, frame] of memoryFrames) {
+          frame.traverse((obj) => {
             if (obj instanceof THREE.Mesh) {
               obj.geometry.dispose();
               if (obj.material instanceof THREE.Material) {
@@ -510,12 +356,12 @@ export function MemorySplatViewer({ splatUrl, memories, onMemoryClick }: Props) 
     return () => {
       cleanupRef.current?.();
     };
-  }, [splatUrl, onMemoryClick]);
+  }, [splatUrl]);
 
   return (
     <div
       ref={containerRef}
-      className="w-full h-full"
+      className="absolute inset-0"
       style={{ touchAction: 'none' }}
     />
   );

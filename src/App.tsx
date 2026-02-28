@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import type { AppState, GameState, WorldData, KeyData } from './types';
-import { generateWorld, pollOperation } from './lib/worldlabs';
+import { generateWorld, pollOperation, getSavedWorlds } from './lib/worldlabs';
 import { generateWorldDescription, getSoundPrompt, type Interest } from './lib/openai';
 import { generateSoundEffect, startAudioLoop, unlockAudio, type AudioEngine } from './lib/elevenlabs';
 import { generateTransitionImage } from './lib/gemini';
@@ -10,14 +10,15 @@ import { WorldViewer } from './components/WorldViewer';
 import { EscapeComplete } from './components/AdventureComplete';
 import { TransitionState } from './components/TransitionState';
 import { MemoryLaneApp } from './components/MemoryLaneApp';
+import { SavedWorldsViewer } from './components/SavedWorldsViewer';
 
 const MAX_WORLDS = 3;
 const KEYS_PER_WORLD = 1;
 const KEYS_REQUIRED_TO_WIN = 3;
 
-type AppMode = 'select' | 'escape' | 'memory';
+type AppMode = 'select' | 'escape' | 'memory' | 'saved';
 
-function ModeSelector({ onSelectMode }: { onSelectMode: (mode: 'escape' | 'memory') => void }) {
+function ModeSelector({ onSelectMode, savedWorldsCount }: { onSelectMode: (mode: 'escape' | 'memory' | 'saved') => void; savedWorldsCount: number }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-reverie-black px-6 py-12 animate-fade-in">
       <div className="mb-12 text-center">
@@ -51,29 +52,49 @@ function ModeSelector({ onSelectMode }: { onSelectMode: (mode: 'escape' | 'memor
           </div>
         </button>
 
-        {/* Memory Lane Mode */}
+        {/* Timeless Mode */}
         <button
           onClick={() => onSelectMode('memory')}
           className="group flex-1 bg-reverie-surface border-2 border-reverie-border hover:border-amber-500 rounded-2xl p-8 transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-amber-500/20"
         >
           <div className="text-6xl mb-4">🌟</div>
           <h2 className="text-2xl font-light text-white tracking-wider mb-2 group-hover:text-amber-300 transition-colors">
-            Memory Lane
+            Timeless
           </h2>
           <p className="text-reverie-muted text-sm leading-relaxed">
-            Upload your photos and videos. Walk through a personalized 3D world built from your memories.
+            Upload your photos. Walk through a personalized 3D world built from your memories.
           </p>
           <div className="mt-4 flex items-center justify-center gap-2 text-amber-400 text-xs tracking-wider uppercase">
-            <span>Upload Media</span>
+            <span>Upload Photos</span>
             <span>•</span>
             <span>AI World</span>
             <span>•</span>
-            <span>Relive</span>
+            <span>Walk Memory Lane</span>
           </div>
         </button>
       </div>
 
-      <p className="mt-12 text-reverie-border text-xs text-center max-w-md">
+      {/* Saved Worlds Button */}
+      {savedWorldsCount > 0 && (
+        <button
+          onClick={() => onSelectMode('saved')}
+          className="mt-8 group flex items-center gap-3 bg-reverie-surface border border-reverie-border hover:border-cyan-500 rounded-xl px-6 py-3 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/20"
+        >
+          <svg className="w-5 h-5 text-cyan-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          <span className="text-white text-sm tracking-wider group-hover:text-cyan-300 transition-colors">
+            Saved Worlds
+          </span>
+          <span className="bg-cyan-900/50 text-cyan-300 text-xs px-2 py-0.5 rounded-full">
+            {savedWorldsCount}
+          </span>
+        </button>
+      )}
+
+      <p className="mt-8 text-reverie-border text-xs text-center max-w-md">
         Powered by World Labs Marble AI for spatial world generation
       </p>
     </div>
@@ -120,6 +141,19 @@ export default function App() {
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [muted, setMuted] = useState(false);
   const audioEngineRef = useRef<AudioEngine | null>(null);
+  const [savedWorldsCount, setSavedWorldsCount] = useState(() => getSavedWorlds().length);
+
+  // If in saved worlds mode, render the SavedWorldsViewer
+  if (mode === 'saved') {
+    return (
+      <SavedWorldsViewer
+        onClose={() => {
+          setSavedWorldsCount(getSavedWorlds().length);
+          setMode('select');
+        }}
+      />
+    );
+  }
 
   // If in memory mode, render the Memory Lane app
   if (mode === 'memory') {
@@ -141,7 +175,7 @@ export default function App() {
 
   // If in select mode, show mode selector
   if (mode === 'select') {
-    return <ModeSelector onSelectMode={(m) => setMode(m)} />;
+    return <ModeSelector onSelectMode={(m) => setMode(m)} savedWorldsCount={savedWorldsCount} />;
   }
 
   function stopAudio() {

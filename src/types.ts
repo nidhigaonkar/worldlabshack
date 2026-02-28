@@ -62,9 +62,8 @@ export interface WorldResult {
 // Memory Lane types
 export interface MemoryMedia {
   id: string;
-  type: 'image' | 'video';
+  type: 'image';
   dataUrl: string;
-  thumbnail?: string;
   position: { x: number; y: number; z: number };
   rotation: { x: number; y: number; z: number };
 }

@@ -30,9 +30,8 @@ export function MemoryLaneApp() {
     // Convert to MemoryMedia with placeholder positions
     const media: MemoryMedia[] = uploads.map(u => ({
       id: u.id,
-      type: u.type,
+      type: 'image' as const,
       dataUrl: u.dataUrl,
-      thumbnail: u.thumbnail,
       position: { x: 0, y: 0, z: 0 },
       rotation: { x: 0, y: 0, z: 0 },
     }));

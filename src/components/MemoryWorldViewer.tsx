@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { MemorySplatViewer } from './MemorySplatViewer';
 import type { MemoryMedia } from '../types';
 
@@ -27,28 +27,25 @@ export function MemoryWorldViewer({
   onMuteToggle,
   muted = false,
 }: Props) {
-  const [activeMemoryId, setActiveMemoryId] = useState<string | null>(null);
   const [showInstructions, setShowInstructions] = useState(true);
+  const photoCount = memories.length;
 
-  const handleMemoryClick = useCallback((memoryId: string) => {
-    setActiveMemoryId(prev => prev === memoryId ? null : memoryId);
-    setShowInstructions(false);
-  }, []);
-
-  const activeMemory = memories.find(m => m.id === activeMemoryId);
-  const videoCount = memories.filter(m => m.type === 'video').length;
-  const imageCount = memories.filter(m => m.type === 'image').length;
+  // Auto-hide instructions after 5 seconds
+  if (showInstructions && splatUrl) {
+    setTimeout(() => setShowInstructions(false), 5000);
+  }
 
   return (
     <div className="fixed inset-0 bg-reverie-black">
-      {splatUrl ? (
-        <MemorySplatViewer
-          splatUrl={splatUrl}
-          memories={memories}
-          onMemoryClick={handleMemoryClick}
-        />
-      ) : thumbnailUrl ? (
-        <div className="w-full h-full flex flex-col items-center justify-center p-6">
+      {/* Splat/thumbnail/loading - absolute inset-0 ensures it fills viewport */}
+      <div className="absolute inset-0">
+        {splatUrl ? (
+          <MemorySplatViewer
+            splatUrl={splatUrl}
+            memories={memories}
+          />
+        ) : thumbnailUrl ? (
+          <div className="w-full h-full flex flex-col items-center justify-center p-6">
           <div className="max-w-2xl w-full flex flex-col items-center gap-6">
             <img
               src={thumbnailUrl}
@@ -73,31 +70,32 @@ export function MemoryWorldViewer({
               </svg>
             </a>
           </div>
-        </div>
-      ) : (
-        <div className="w-full h-full flex items-center justify-center">
-          <span className="text-reverie-muted">Loading memory world...</span>
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-reverie-muted">Loading memory world...</span>
+          </div>
+        )}
+      </div>
 
-      {/* Memory Lane HUD - Top Bar */}
+      {/* Timeless HUD - Top Bar */}
       <div className="fixed top-6 left-6 right-6 flex items-center justify-between pointer-events-none">
         {/* Title */}
         <div className="pointer-events-auto flex items-center gap-3 bg-reverie-surface/80 backdrop-blur-sm border border-reverie-border rounded-full px-4 py-2">
           <span className="text-2xl">🌟</span>
           <span className="text-white text-sm tracking-wider font-medium">
-            Memory Lane
+            Timeless
           </span>
         </div>
         
         {/* Memory Counter */}
-        <div className="pointer-events-auto flex items-center gap-2 bg-purple-900/80 backdrop-blur-sm border border-purple-600/50 rounded-xl px-5 py-2.5">
+        <div className="pointer-events-auto flex items-center gap-2 bg-amber-900/80 backdrop-blur-sm border border-amber-600/50 rounded-xl px-5 py-2.5">
           <div className="flex flex-col items-center">
-            <span className="text-purple-300 text-sm font-medium">
-              {imageCount} photos, {videoCount} videos
+            <span className="text-amber-300 text-sm font-medium">
+              {photoCount} memories
             </span>
-            <span className="text-purple-300/60 text-[10px] uppercase tracking-wider">
-              Click frames to view
+            <span className="text-amber-300/60 text-[10px] uppercase tracking-wider">
+              displayed in your world
             </span>
           </div>
         </div>
@@ -113,25 +111,10 @@ export function MemoryWorldViewer({
       {/* Instructions toast */}
       {showInstructions && splatUrl && (
         <div className="fixed top-24 left-1/2 -translate-x-1/2 pointer-events-none animate-fade-in">
-          <div className="bg-reverie-surface/90 backdrop-blur-sm border border-purple-500/30 rounded-xl px-6 py-3">
-            <p className="text-purple-300 text-sm text-center">
-              Look around and <span className="font-medium">click on photo frames</span> to relive your memories
+          <div className="bg-reverie-surface/90 backdrop-blur-sm border border-amber-500/30 rounded-xl px-6 py-3">
+            <p className="text-amber-300 text-sm text-center">
+              Explore your personalized memory world with <span className="font-medium">WASD</span> and mouse
             </p>
-          </div>
-        </div>
-      )}
-
-      {/* Now Playing indicator */}
-      {activeMemory && activeMemory.type === 'video' && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 pointer-events-none animate-fade-in">
-          <div className="flex items-center gap-3 bg-purple-900/90 backdrop-blur-sm border border-purple-500/50 rounded-full px-5 py-2.5">
-            <div className="w-3 h-3 rounded-full bg-purple-400 animate-pulse" />
-            <span className="text-purple-200 text-sm font-medium">
-              Playing memory...
-            </span>
-            <span className="text-purple-300/60 text-xs">
-              (click again to stop)
-            </span>
           </div>
         </div>
       )}
@@ -182,7 +165,7 @@ export function MemoryWorldViewer({
       <div className="fixed bottom-6 left-6 pointer-events-none">
         <div className="flex items-center gap-2 bg-reverie-surface/60 backdrop-blur-sm border border-reverie-border rounded-full px-4 py-2">
           <span className="text-reverie-muted text-[10px] tracking-wider uppercase">
-            WASD to move • Mouse to look • Click frames to play
+            WASD to move • Mouse to look around • Scroll to zoom
           </span>
         </div>
       </div>
