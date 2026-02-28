@@ -2,16 +2,20 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { SplatMesh, SparkRenderer } from '@sparkjsdev/spark';
 import type { MemoryMedia } from '../types';
+import type { HandControlState } from '../hooks/useHandTracking';
 
 interface Props {
   splatUrl: string;
   memories: MemoryMedia[];
+  handTrackingRef?: React.RefObject<HandControlState>;
 }
 
-export function MemorySplatViewer({ splatUrl, memories }: Props) {
+export function MemorySplatViewer({ splatUrl, memories, handTrackingRef }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const memoriesRef = useRef(memories);
+
+  console.log('[MemorySplatViewer] component mounted/updated, splatUrl:', splatUrl);
 
   useEffect(() => {
     memoriesRef.current = memories;
@@ -295,6 +299,32 @@ export function MemorySplatViewer({ splatUrl, memories }: Props) {
 
         if (Object.values(pressedKeys).some(v => v)) {
           updateCamera();
+        }
+
+        // Hand tracking controls
+        const handState = handTrackingRef?.current;
+        if (handState?.active) {
+          let handMoved = false;
+
+          if (Math.abs(handState.moveX) > 0.01 || Math.abs(handState.moveZ) > 0.01) {
+            position.addScaledVector(forward, moveSpeed * handState.moveZ);
+            position.addScaledVector(right, moveSpeed * handState.moveX);
+            handMoved = true;
+          }
+
+          if (Math.abs(handState.moveY) > 0.01) {
+            position.y += moveSpeed * handState.moveY;
+            handMoved = true;
+          }
+
+          if (Math.abs(handState.lookYawSpeed) > 0.001 || Math.abs(handState.lookPitchSpeed) > 0.001) {
+            yaw += handState.lookYawSpeed;
+            pitch += handState.lookPitchSpeed;
+            pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+            handMoved = true;
+          }
+
+          if (handMoved) updateCamera();
         }
 
         // Animate memory frames - gentle float

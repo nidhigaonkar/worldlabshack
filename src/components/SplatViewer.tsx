@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { SplatMesh, SparkRenderer } from '@sparkjsdev/spark';
 import type { KeyData } from '../types';
+import type { HandControlState } from '../hooks/useHandTracking';
 
 interface Props {
   splatUrl: string;
@@ -11,6 +12,7 @@ interface Props {
   keys: KeyData[];
   onKeyCollect?: (keyId: string) => void;
   onProximityUpdate?: (nearestKeyDistance: number | null, nearestKeyDirection: { x: number; y: number; z: number } | null) => void;
+  handTrackingRef?: React.RefObject<HandControlState>;
 }
 
 const KEY_COLORS = {
@@ -27,6 +29,7 @@ export function SplatViewer({
   keys,
   onKeyCollect,
   onProximityUpdate,
+  handTrackingRef,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -393,6 +396,66 @@ export function SplatViewer({
 
         if (pressedKeys['w'] || pressedKeys['s'] || pressedKeys['a'] || pressedKeys['d'] || pressedKeys[' '] || pressedKeys['e'] || pressedKeys['shift'] || pressedKeys['q']) {
           updateCamera();
+        }
+
+        // Hand tracking controls
+        const handState = handTrackingRef?.current;
+        if (handState?.active) {
+          let handMoved = false;
+
+          if (Math.abs(handState.moveX) > 0.01 || Math.abs(handState.moveZ) > 0.01) {
+            position.addScaledVector(forward, moveSpeed * handState.moveZ);
+            position.addScaledVector(right, moveSpeed * handState.moveX);
+            handMoved = true;
+          }
+
+          if (Math.abs(handState.moveY) > 0.01) {
+            position.y += moveSpeed * handState.moveY;
+            handMoved = true;
+          }
+
+          if (Math.abs(handState.lookYawSpeed) > 0.001 || Math.abs(handState.lookPitchSpeed) > 0.001) {
+            yaw += handState.lookYawSpeed;
+            pitch += handState.lookPitchSpeed;
+            pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, pitch));
+            handMoved = true;
+          }
+
+          if (handMoved) updateCamera();
+
+          if (handState.pinchJustStarted) {
+            mouse.x = 0;
+            mouse.y = 0;
+            raycaster.setFromCamera(mouse, camera);
+
+            const allKeyMeshes = Array.from(keyMeshes.values());
+            if (allKeyMeshes.length > 0) {
+              const keyIntersects = raycaster.intersectObjects(allKeyMeshes, true);
+              if (keyIntersects.length > 0) {
+                for (const [keyId, keyMesh] of keyMeshes.entries()) {
+                  if (keyIntersects[0].object.parent === keyMesh || keyMesh.children.includes(keyIntersects[0].object)) {
+                    const keyData = keysRef.current.find(k => k.id === keyId);
+                    if (keyData && !keyData.collected) {
+                      const dist = position.distanceTo(new THREE.Vector3(keyData.position.x, keyData.position.y, keyData.position.z));
+                      if (dist <= KEY_COLLECT_DISTANCE * 2) {
+                        collectKey(keyId);
+                      }
+                    }
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (portal && onPortalClick && !portalLockedRef.current) {
+              const portalIntersects = raycaster.intersectObjects(portal.children, true);
+              if (portalIntersects.length > 0) {
+                onPortalClick();
+              }
+            }
+
+            handState.pinchJustStarted = false;
+          }
         }
 
         // Check for key proximity and auto-collect

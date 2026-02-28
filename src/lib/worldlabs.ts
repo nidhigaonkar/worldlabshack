@@ -189,7 +189,6 @@ export async function pollOperation(
   operationId: string,
   onProgress?: (attempt: number) => void,
   originalPrompt?: string,
-  memoryImages?: string[],
 ): Promise<WorldResult> {
   const MAX_ATTEMPTS = 60;
   const INTERVAL_MS = 3000;
@@ -229,18 +228,23 @@ export async function pollOperation(
       if (!marbleUrl) throw new Error('No marble URL in completed operation');
       console.log('[World Labs] done', { marbleUrl, splatUrl, panoUrl, thumbnailUrl, attempt });
       
-      // Auto-save the world
-      saveWorldToStorage({
-        id: operationId,
-        prompt: originalPrompt || caption || 'Unknown prompt',
-        timestamp: new Date().toISOString(),
-        marbleUrl,
-        caption,
-        thumbnailUrl,
-        splatUrl,
-        panoUrl,
-        memoryImages,
-      });
+      // Auto-save the world (don't store full image data URLs - they're too large for localStorage)
+      try {
+        saveWorldToStorage({
+          id: operationId,
+          prompt: originalPrompt || caption || 'Unknown prompt',
+          timestamp: new Date().toISOString(),
+          marbleUrl,
+          caption,
+          thumbnailUrl,
+          splatUrl,
+          panoUrl,
+          // Don't save memoryImages - they exceed localStorage quota
+        });
+      } catch (saveErr) {
+        console.warn('[World Labs] Failed to save world to localStorage:', saveErr);
+        // Don't throw - we still want to return the result
+      }
       
       return { marbleUrl, caption, thumbnailUrl, splatUrl, panoUrl };
     }

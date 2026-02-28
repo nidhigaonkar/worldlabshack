@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { MemorySplatViewer } from './MemorySplatViewer';
+import { HandTrackingOverlay } from './HandTrackingOverlay';
+import { useHandTracking } from '../hooks/useHandTracking';
 import type { MemoryMedia } from '../types';
 
 interface Props {
@@ -29,6 +31,7 @@ export function MemoryWorldViewer({
 }: Props) {
   const [showInstructions, setShowInstructions] = useState(true);
   const photoCount = memories.length;
+  const handTracking = useHandTracking();
 
   // Auto-hide instructions after 5 seconds
   if (showInstructions && splatUrl) {
@@ -43,6 +46,7 @@ export function MemoryWorldViewer({
           <MemorySplatViewer
             splatUrl={splatUrl}
             memories={memories}
+            handTrackingRef={handTracking.handStateRef}
           />
         ) : thumbnailUrl ? (
           <div className="w-full h-full flex flex-col items-center justify-center p-6">
@@ -113,7 +117,7 @@ export function MemoryWorldViewer({
         <div className="fixed top-24 left-1/2 -translate-x-1/2 pointer-events-none animate-fade-in">
           <div className="bg-reverie-surface/90 backdrop-blur-sm border border-amber-500/30 rounded-xl px-6 py-3">
             <p className="text-amber-300 text-sm text-center">
-              Explore your personalized memory world with <span className="font-medium">WASD</span> and mouse
+              Explore with <span className="font-medium">WASD</span> + mouse, or enable <span className="font-medium">hand tracking</span> below
             </p>
           </div>
         </div>
@@ -161,11 +165,28 @@ export function MemoryWorldViewer({
         </div>
       )}
 
+      {/* Hand tracking toggle + overlay */}
+      {splatUrl && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
+          <HandTrackingOverlay
+            enabled={handTracking.enabled}
+            setEnabled={handTracking.setEnabled}
+            isLoading={handTracking.isLoading}
+            error={handTracking.error}
+            handStateRef={handTracking.handStateRef}
+            videoRef={handTracking.videoRef}
+            canvasRef={handTracking.canvasRef}
+          />
+        </div>
+      )}
+
       {/* Controls hint */}
-      <div className="fixed bottom-6 left-6 pointer-events-none">
+      <div className={`fixed ${handTracking.enabled ? 'bottom-24' : 'bottom-6'} left-6 pointer-events-none transition-all duration-200`}>
         <div className="flex items-center gap-2 bg-reverie-surface/60 backdrop-blur-sm border border-reverie-border rounded-full px-4 py-2">
           <span className="text-reverie-muted text-[10px] tracking-wider uppercase">
-            WASD to move • Mouse to look around • Scroll to zoom
+            {handTracking.enabled
+              ? 'Hand tracking active • Open hand: move • Point: look • Pinch: interact'
+              : 'WASD to move • Mouse to look around • Scroll to zoom'}
           </span>
         </div>
       </div>

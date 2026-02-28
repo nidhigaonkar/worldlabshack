@@ -74,12 +74,13 @@ export function MemoryLaneApp() {
 
       setState({ phase: 'polling', memoryState, prompt, operationId });
 
-      // Pass all uploaded image data URLs so they get saved with the world
-      const allImageDataUrls = media.map(m => m.dataUrl);
-
       const result = await pollOperation(operationId, (attempt) => {
         setPollAttempt(attempt);
-      }, prompt, allImageDataUrls);
+      }, prompt);
+
+      console.log('[MemoryLaneApp] pollOperation completed, result:', result);
+      console.log('[MemoryLaneApp] splatUrl:', result.splatUrl);
+      console.log('[MemoryLaneApp] transitioning to displaying phase...');
 
       setState({
         phase: 'displaying',
@@ -90,6 +91,8 @@ export function MemoryLaneApp() {
         splatUrl: result.splatUrl,
         panoUrl: result.panoUrl,
       });
+      
+      console.log('[MemoryLaneApp] setState called, should now show viewer');
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg);
@@ -144,6 +147,11 @@ export function MemoryLaneApp() {
   const showLoading = state.phase === 'generating' || state.phase === 'polling';
   const showViewer = state.phase === 'displaying';
 
+  console.log('[MemoryLaneApp] render, phase:', state.phase, 'showViewer:', showViewer);
+  if (showViewer && state.phase === 'displaying') {
+    console.log('[MemoryLaneApp] viewer should render with splatUrl:', state.splatUrl);
+  }
+
   return (
     <>
       {error && (
@@ -177,7 +185,6 @@ export function MemoryLaneApp() {
 
       {showAnalyzing && (
         <div className="flex flex-col items-center justify-center min-h-screen bg-reverie-black animate-fade-in">
-          <div className="text-6xl mb-6 animate-pulse">🔮</div>
           <h2 className="text-2xl font-light text-white tracking-wider mb-2">
             Analyzing Your Memories
           </h2>

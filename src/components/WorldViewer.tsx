@@ -1,5 +1,7 @@
 import { useState, useCallback } from 'react';
 import { SplatViewer } from './SplatViewer';
+import { HandTrackingOverlay } from './HandTrackingOverlay';
+import { useHandTracking } from '../hooks/useHandTracking';
 import type { KeyData } from '../types';
 
 interface Props {
@@ -43,6 +45,7 @@ export function WorldViewer({
   const isLastWorld = worldNumber >= maxWorlds;
   const [nearestKeyDistance, setNearestKeyDistance] = useState<number | null>(null);
   const [showKeyCollectAnimation, setShowKeyCollectAnimation] = useState(false);
+  const handTracking = useHandTracking();
   
   const handleProximityUpdate = useCallback((distance: number | null, _direction: { x: number; y: number; z: number } | null) => {
     setNearestKeyDistance(distance);
@@ -82,6 +85,7 @@ export function WorldViewer({
           keys={keys}
           onKeyCollect={handleKeyCollect}
           onProximityUpdate={handleProximityUpdate}
+          handTrackingRef={handTracking.handStateRef}
         />
       ) : thumbnailUrl ? (
         <div className="w-full h-full flex flex-col items-center justify-center p-6">
@@ -226,9 +230,24 @@ export function WorldViewer({
         </div>
       )}
 
+      {/* Hand tracking toggle + overlay */}
+      {splatUrl && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-auto">
+          <HandTrackingOverlay
+            enabled={handTracking.enabled}
+            setEnabled={handTracking.setEnabled}
+            isLoading={handTracking.isLoading}
+            error={handTracking.error}
+            handStateRef={handTracking.handStateRef}
+            videoRef={handTracking.videoRef}
+            canvasRef={handTracking.canvasRef}
+          />
+        </div>
+      )}
+
       {/* Portal hint - shown when splat viewer has interactive portal */}
       {splatUrl && onPortalEnter && (
-        <div className="fixed bottom-6 left-6 pointer-events-none">
+        <div className={`fixed ${handTracking.enabled ? 'bottom-24' : 'bottom-6'} left-6 pointer-events-none transition-all duration-200`}>
           {portalLocked ? (
             <div className="flex items-center gap-2 bg-gray-900/80 backdrop-blur-sm border border-gray-600/50 rounded-full px-4 py-2">
               <span className="text-xl">🔒</span>

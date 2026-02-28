@@ -188,6 +188,7 @@ export default function App() {
     stopAudio();
     setError(null);
     setPollAttempt(0);
+    console.log('[App] Starting world generation...');
 
     const game: GameState = {
       interests,
@@ -228,6 +229,8 @@ export default function App() {
         previousDescriptions: [result.caption || prompt],
       };
 
+      console.log('[App] World generation completed successfully, transitioning to display phase');
+      setError(null); // Clear any previous errors
       setState({
         phase: 'displaying',
         game: updatedGame,
@@ -240,6 +243,7 @@ export default function App() {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      console.error('[App] World generation failed:', err);
       setError(msg);
       setState({ phase: 'picking_interests' });
     }
@@ -358,6 +362,7 @@ export default function App() {
         previousDescriptions: [...game.previousDescriptions, result.caption || prompt],
       };
 
+      setError(null); // Clear any previous errors
       setState({
         phase: 'displaying',
         game: finalGame,
@@ -370,6 +375,7 @@ export default function App() {
       });
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
+      console.error('[App] Portal transition failed:', err);
       setError(msg);
       // Go back to displaying current world on error
       setState(state);

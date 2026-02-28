@@ -200,7 +200,7 @@ export function MemoryUploader({ onComplete, isAnalyzing = false }: Props) {
       <div className="mt-12 max-w-lg text-center">
         <div className="bg-reverie-surface/50 border border-reverie-border rounded-xl p-4 space-y-2">
           <p className="text-purple-400 text-sm font-medium flex items-center justify-center gap-2">
-            <span className="text-lg">🌟</span> How It Works
+            How It Works
           </p>
           <p className="text-reverie-border text-xs leading-relaxed">
             Upload your favorite photos. Our AI will analyze them to find the best
