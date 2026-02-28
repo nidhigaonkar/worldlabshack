@@ -15,7 +15,7 @@ const GESTURE_LABELS: Record<HandControlState['gesture'], string> = {
   none: 'No gesture',
   open: 'Move',
   pointing: 'Look',
-  pinch: 'Action',
+  pinch: 'Turn / Drag',
   peace: 'Up / Down',
 };
 
@@ -176,8 +176,12 @@ export function HandTrackingOverlay({
           <span className="text-reverie-muted text-[10px] uppercase tracking-wider block mb-2">Controls</span>
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center gap-2">
-              <span className="text-green-400 text-xs">Open hand</span>
-              <span className="text-reverie-muted text-[10px]">Move around</span>
+              <span className="text-green-400 text-xs">1 palm</span>
+              <span className="text-reverie-muted text-[10px]">Move forward</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-green-400 text-xs">2 palms</span>
+              <span className="text-reverie-muted text-[10px]">Move backward</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-blue-400 text-xs">Point finger</span>
@@ -185,7 +189,7 @@ export function HandTrackingOverlay({
             </div>
             <div className="flex items-center gap-2">
               <span className="text-amber-400 text-xs">Pinch</span>
-              <span className="text-reverie-muted text-[10px]">Interact</span>
+              <span className="text-reverie-muted text-[10px]">Turn / Drag</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-purple-400 text-xs">Peace sign</span>

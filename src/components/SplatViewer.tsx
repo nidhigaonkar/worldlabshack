@@ -13,6 +13,7 @@ interface Props {
   onKeyCollect?: (keyId: string) => void;
   onProximityUpdate?: (nearestKeyDistance: number | null, nearestKeyDirection: { x: number; y: number; z: number } | null) => void;
   handTrackingRef?: React.RefObject<HandControlState>;
+  resetViewRef?: React.MutableRefObject<(() => void) | null>;
 }
 
 const KEY_COLORS = {
@@ -30,6 +31,7 @@ export function SplatViewer({
   onKeyCollect,
   onProximityUpdate,
   handTrackingRef,
+  resetViewRef,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
@@ -237,6 +239,14 @@ export function SplatViewer({
       }
       updateCamera();
 
+      function resetView() {
+        position.set(0, 0, 3);
+        yaw = 0;
+        pitch = 0;
+        updateCamera();
+      }
+      if (resetViewRef) resetViewRef.current = resetView;
+
       function onPointerDown(e: PointerEvent) {
         isDragging = true;
         wasClick = true;
@@ -422,40 +432,6 @@ export function SplatViewer({
           }
 
           if (handMoved) updateCamera();
-
-          if (handState.pinchJustStarted) {
-            mouse.x = 0;
-            mouse.y = 0;
-            raycaster.setFromCamera(mouse, camera);
-
-            const allKeyMeshes = Array.from(keyMeshes.values());
-            if (allKeyMeshes.length > 0) {
-              const keyIntersects = raycaster.intersectObjects(allKeyMeshes, true);
-              if (keyIntersects.length > 0) {
-                for (const [keyId, keyMesh] of keyMeshes.entries()) {
-                  if (keyIntersects[0].object.parent === keyMesh || keyMesh.children.includes(keyIntersects[0].object)) {
-                    const keyData = keysRef.current.find(k => k.id === keyId);
-                    if (keyData && !keyData.collected) {
-                      const dist = position.distanceTo(new THREE.Vector3(keyData.position.x, keyData.position.y, keyData.position.z));
-                      if (dist <= KEY_COLLECT_DISTANCE * 2) {
-                        collectKey(keyId);
-                      }
-                    }
-                    break;
-                  }
-                }
-              }
-            }
-
-            if (portal && onPortalClick && !portalLockedRef.current) {
-              const portalIntersects = raycaster.intersectObjects(portal.children, true);
-              if (portalIntersects.length > 0) {
-                onPortalClick();
-              }
-            }
-
-            handState.pinchJustStarted = false;
-          }
         }
 
         // Check for key proximity and auto-collect
@@ -564,6 +540,7 @@ export function SplatViewer({
 
       cleanupRef.current = () => {
         disposed = true;
+        if (resetViewRef) resetViewRef.current = null;
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('pointermove', onPointerMove);
         canvas.removeEventListener('pointerup', onPointerUp);
@@ -619,7 +596,7 @@ export function SplatViewer({
     return () => {
       cleanupRef.current?.();
     };
-  }, [splatUrl]);
+  }, [splatUrl, resetViewRef]);
 
   return (
     <div

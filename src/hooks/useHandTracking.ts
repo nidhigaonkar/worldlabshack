@@ -135,12 +135,16 @@ export function useHandTracking() {
     }
 
     if (results.landmarks && results.landmarks.length > 0) {
+      const numHands = results.landmarks.length;
       const rawLandmarks = results.landmarks[0];
       const landmarks = rawLandmarks.map((l) => ({ x: l.x, y: l.y, z: l.z }));
 
-      // Draw landmarks on overlay canvas
+      // Draw landmarks on overlay canvas (all hands)
       if (ctx && canvas) {
-        drawLandmarks(ctx, landmarks, canvas.width, canvas.height);
+        for (const handLms of results.landmarks) {
+          const lms = handLms.map((l) => ({ x: l.x, y: l.y, z: l.z }));
+          drawLandmarks(ctx, lms, canvas.width, canvas.height);
+        }
       }
 
       const wrist = landmarks[0];
@@ -152,6 +156,13 @@ export function useHandTracking() {
       const tipY = smoothValue(smoothingBuffer.current.tipY, indexTip.y);
 
       const { gesture } = detectGesture(landmarks);
+
+      // For 2 hands: check if second hand also has open gesture
+      let bothHandsOpen = numHands === 2 && gesture === 'open';
+      if (numHands === 2 && gesture === 'open') {
+        const secondLandmarks = results.landmarks[1].map((l) => ({ x: l.x, y: l.y, z: l.z }));
+        bothHandsOpen = detectGesture(secondLandmarks).gesture === 'open';
+      }
 
       const state = handStateRef.current;
       state.active = true;
@@ -166,8 +177,9 @@ export function useHandTracking() {
 
       switch (gesture) {
         case 'open': {
-          state.moveX = clamp(mapToMovement(palmX), -1, 1);
-          state.moveZ = clamp(-mapToMovement(palmY), -1, 1);
+          // 1 palm = forward (W), 2 palms = backward (S). No strafe.
+          state.moveX = 0;
+          state.moveZ = bothHandsOpen ? -1 : 1;
           state.moveY = 0;
           state.lookYawSpeed = 0;
           state.lookPitchSpeed = 0;
@@ -187,6 +199,15 @@ export function useHandTracking() {
           state.moveY = clamp(-mapToMovement(palmY), -1, 1);
           state.lookYawSpeed = 0;
           state.lookPitchSpeed = 0;
+          break;
+        }
+        case 'pinch': {
+          state.moveX = 0;
+          state.moveZ = 0;
+          state.moveY = 0;
+          // Pinch = turn/drag: use palm position to rotate view
+          state.lookYawSpeed = mapToMovement(palmX) * LOOK_SPEED_MULTIPLIER;
+          state.lookPitchSpeed = -mapToMovement(palmY) * LOOK_SPEED_MULTIPLIER;
           break;
         }
         default: {
@@ -244,7 +265,7 @@ export function useHandTracking() {
               'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task',
             delegate: 'GPU',
           },
-          numHands: 1,
+          numHands: 2,
           runningMode: 'VIDEO',
           minHandDetectionConfidence: 0.7,
           minHandPresenceConfidence: 0.5,

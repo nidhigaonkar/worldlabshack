@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { MemorySplatViewer } from './MemorySplatViewer';
 import { HandTrackingOverlay } from './HandTrackingOverlay';
 import { useHandTracking } from '../hooks/useHandTracking';
@@ -32,6 +32,7 @@ export function MemoryWorldViewer({
   const [showInstructions, setShowInstructions] = useState(true);
   const photoCount = memories.length;
   const handTracking = useHandTracking();
+  const resetViewRef = useRef<(() => void) | null>(null);
 
   // Auto-hide instructions after 5 seconds
   if (showInstructions && splatUrl) {
@@ -47,6 +48,7 @@ export function MemoryWorldViewer({
             splatUrl={splatUrl}
             memories={memories}
             handTrackingRef={handTracking.handStateRef}
+            resetViewRef={resetViewRef}
           />
         ) : thumbnailUrl ? (
           <div className="w-full h-full flex flex-col items-center justify-center p-6">
@@ -81,6 +83,20 @@ export function MemoryWorldViewer({
           </div>
         )}
       </div>
+
+      {/* Home / Reset view button */}
+      {splatUrl && (
+        <button
+          onClick={() => resetViewRef.current?.()}
+          className="fixed top-6 right-6 z-50 flex items-center justify-center w-10 h-10 rounded-full bg-reverie-surface/80 backdrop-blur-sm border border-reverie-border hover:border-reverie-accent hover:text-white transition-colors"
+          aria-label="Reset view to home"
+        >
+          <svg className="w-5 h-5 text-reverie-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        </button>
+      )}
 
       {/* Timeless HUD - Top Bar */}
       <div className="fixed top-6 left-6 right-6 flex items-center justify-between pointer-events-none">
@@ -185,7 +201,7 @@ export function MemoryWorldViewer({
         <div className="flex items-center gap-2 bg-reverie-surface/60 backdrop-blur-sm border border-reverie-border rounded-full px-4 py-2">
           <span className="text-reverie-muted text-[10px] tracking-wider uppercase">
             {handTracking.enabled
-              ? 'Hand tracking active • Open hand: move • Point: look • Pinch: interact'
+              ? 'Hand tracking active • 1 palm: forward, 2 palms: backward • Point: look • Pinch: turn/drag'
               : 'WASD to move • Mouse to look around • Scroll to zoom'}
           </span>
         </div>

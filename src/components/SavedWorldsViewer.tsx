@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { getSavedWorlds, type SavedWorld } from '../lib/worldlabs';
 import { SplatViewer } from './SplatViewer';
 import { MemorySplatViewer } from './MemorySplatViewer';
+import { HandTrackingOverlay } from './HandTrackingOverlay';
+import { useHandTracking } from '../hooks/useHandTracking';
 import type { MemoryMedia } from '../types';
 
 interface Props {
@@ -27,6 +29,8 @@ export function SavedWorldsViewer({ onClose }: Props) {
   const [worlds, setWorlds] = useState<SavedWorld[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [viewingInBrowser, setViewingInBrowser] = useState(false);
+  const handTracking = useHandTracking();
+  const resetViewRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     setWorlds(getSavedWorlds());
@@ -72,24 +76,69 @@ export function SavedWorldsViewer({ onClose }: Props) {
       <div className="fixed inset-0 bg-reverie-black z-50">
         {hasMemories ? (
           <div className="absolute inset-0">
-            <MemorySplatViewer splatUrl={currentWorld.splatUrl} memories={memories} />
+            <MemorySplatViewer
+              splatUrl={currentWorld.splatUrl}
+              memories={memories}
+              handTrackingRef={handTracking.handStateRef}
+              resetViewRef={resetViewRef}
+            />
           </div>
         ) : (
-          <SplatViewer splatUrl={currentWorld.splatUrl} showPortal={false} keys={[]} />
+          <SplatViewer
+            splatUrl={currentWorld.splatUrl}
+            showPortal={false}
+            keys={[]}
+            handTrackingRef={handTracking.handStateRef}
+            resetViewRef={resetViewRef}
+          />
         )}
-        <button
-          onClick={() => setViewingInBrowser(false)}
-          className="fixed top-4 left-4 z-50 flex items-center gap-2 px-4 py-2 rounded-lg bg-reverie-surface/90 backdrop-blur-sm border border-reverie-border text-white hover:border-reverie-accent transition-colors"
-        >
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          Back to Gallery
-        </button>
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-reverie-surface/90 backdrop-blur-sm border border-reverie-border rounded-lg px-4 py-2">
-          <p className="text-white text-sm text-center line-clamp-1 max-w-md">
-            {currentWorld.prompt}
-          </p>
+        <div className="fixed top-4 left-4 z-50 flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewingInBrowser(false)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-reverie-surface/90 backdrop-blur-sm border border-reverie-border text-white hover:border-reverie-accent transition-colors"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+              Back to Gallery
+            </button>
+            <button
+              onClick={() => resetViewRef.current?.()}
+              className="flex items-center justify-center w-10 h-10 rounded-lg bg-reverie-surface/90 backdrop-blur-sm border border-reverie-border hover:border-reverie-accent text-white transition-colors"
+              aria-label="Reset view to home"
+            >
+              <svg className="w-5 h-5 text-reverie-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                <polyline points="9 22 9 12 15 12 15 22" />
+              </svg>
+            </button>
+          </div>
+          <div className="bg-reverie-surface/90 backdrop-blur-sm border border-reverie-border rounded-lg px-4 py-2 max-w-md">
+            <p className="text-white text-sm line-clamp-2">
+              {currentWorld.prompt}
+            </p>
+          </div>
+        </div>
+
+        {/* Gesture control button */}
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-2">
+          <HandTrackingOverlay
+            enabled={handTracking.enabled}
+            setEnabled={handTracking.setEnabled}
+            isLoading={handTracking.isLoading}
+            error={handTracking.error}
+            handStateRef={handTracking.handStateRef}
+            videoRef={handTracking.videoRef}
+            canvasRef={handTracking.canvasRef}
+          />
+          <div className="flex items-center gap-2 bg-reverie-surface/60 backdrop-blur-sm border border-reverie-border rounded-full px-4 py-2">
+            <span className="text-reverie-muted text-[10px] tracking-wider uppercase">
+              {handTracking.enabled
+                ? 'Hand tracking active • 1 palm: forward, 2 palms: backward • Point: look • Pinch: turn/drag'
+                : 'WASD to move • Mouse to look around • Scroll to zoom'}
+            </span>
+          </div>
         </div>
       </div>
     );

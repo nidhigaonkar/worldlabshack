@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { SplatViewer } from './SplatViewer';
 import { HandTrackingOverlay } from './HandTrackingOverlay';
 import { useHandTracking } from '../hooks/useHandTracking';
@@ -46,6 +46,7 @@ export function WorldViewer({
   const [nearestKeyDistance, setNearestKeyDistance] = useState<number | null>(null);
   const [showKeyCollectAnimation, setShowKeyCollectAnimation] = useState(false);
   const handTracking = useHandTracking();
+  const resetViewRef = useRef<(() => void) | null>(null);
   
   const handleProximityUpdate = useCallback((distance: number | null, _direction: { x: number; y: number; z: number } | null) => {
     setNearestKeyDistance(distance);
@@ -86,6 +87,7 @@ export function WorldViewer({
           onKeyCollect={handleKeyCollect}
           onProximityUpdate={handleProximityUpdate}
           handTrackingRef={handTracking.handStateRef}
+          resetViewRef={resetViewRef}
         />
       ) : thumbnailUrl ? (
         <div className="w-full h-full flex flex-col items-center justify-center p-6">
@@ -125,6 +127,20 @@ export function WorldViewer({
         <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-50 animate-fade-in">
           <div className="text-6xl animate-bounce">🔑</div>
         </div>
+      )}
+
+      {/* Home / Reset view button */}
+      {splatUrl && (
+        <button
+          onClick={() => resetViewRef.current?.()}
+          className="fixed top-6 right-6 z-50 flex items-center justify-center w-10 h-10 rounded-full bg-reverie-surface/80 backdrop-blur-sm border border-reverie-border hover:border-reverie-accent hover:text-white transition-colors"
+          aria-label="Reset view to home"
+        >
+          <svg className="w-5 h-5 text-reverie-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+            <polyline points="9 22 9 12 15 12 15 22" />
+          </svg>
+        </button>
       )}
 
       {/* Escape Room HUD - Top Bar */}

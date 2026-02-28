@@ -8,9 +8,10 @@ interface Props {
   splatUrl: string;
   memories: MemoryMedia[];
   handTrackingRef?: React.RefObject<HandControlState>;
+  resetViewRef?: React.MutableRefObject<(() => void) | null>;
 }
 
-export function MemorySplatViewer({ splatUrl, memories, handTrackingRef }: Props) {
+export function MemorySplatViewer({ splatUrl, memories, handTrackingRef, resetViewRef }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
   const memoriesRef = useRef(memories);
@@ -206,6 +207,14 @@ export function MemorySplatViewer({ splatUrl, memories, handTrackingRef }: Props
       }
       updateCamera();
 
+      function resetView() {
+        position.set(0, 0, 3);
+        yaw = 0;
+        pitch = 0;
+        updateCamera();
+      }
+      if (resetViewRef) resetViewRef.current = resetView;
+
       function onPointerDown(e: PointerEvent) {
         isDragging = true;
         prevX = e.clientX;
@@ -348,6 +357,7 @@ export function MemorySplatViewer({ splatUrl, memories, handTrackingRef }: Props
 
       cleanupRef.current = () => {
         disposed = true;
+        if (resetViewRef) resetViewRef.current = null;
         canvas.removeEventListener('pointerdown', onPointerDown);
         canvas.removeEventListener('pointermove', onPointerMove);
         canvas.removeEventListener('pointerup', onPointerUp);
@@ -386,7 +396,7 @@ export function MemorySplatViewer({ splatUrl, memories, handTrackingRef }: Props
     return () => {
       cleanupRef.current?.();
     };
-  }, [splatUrl]);
+  }, [splatUrl, resetViewRef]);
 
   return (
     <div
