@@ -13,6 +13,8 @@ export interface HandControlState {
   gesture: 'none' | 'open' | 'pointing' | 'pinch' | 'peace';
   palmPosition: { x: number; y: number } | null;
   landmarks: Array<{ x: number; y: number; z: number }> | null;
+  peaceHoldProgress: number;  // 0 to 1, progress toward triggering portal
+  peaceTriggered: boolean;    // true when peace hold completes
 }
 
 const INITIAL_STATE: HandControlState = {
@@ -23,14 +25,19 @@ const INITIAL_STATE: HandControlState = {
   gesture: 'none',
   palmPosition: null,
   landmarks: null,
+  peaceHoldProgress: 0,
+  peaceTriggered: false,
 };
+
+const PEACE_HOLD_DURATION_MS = 1500;
 
 const DEAD_ZONE_MIN = 0.30;
 const DEAD_ZONE_MAX = 0.70;
 const PINCH_THRESHOLD = 0.07;
 const SMOOTHING_FRAMES = 6;
-const LOOK_SPEED_MULTIPLIER = 0.03;
+const LOOK_SPEED_MULTIPLIER = 0.06;
 const MOVE_SPEED_MULTIPLIER = 1.5;
+const GESTURE_MOVE_MULTIPLIER = 2.5;
 
 function isFingerExtended(
   landmarks: Array<{ x: number; y: number; z: number }>,
@@ -87,10 +94,6 @@ function mapToMovement(value: number): number {
   return 0;
 }
 
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v));
-}
-
 export function useHandTracking() {
   const [enabled, setEnabled] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -103,6 +106,7 @@ export function useHandTracking() {
   const streamRef = useRef<MediaStream | null>(null);
   const animFrameRef = useRef<number>(0);
   const wasPinchingRef = useRef(false);
+  const peaceStartTimeRef = useRef<number | null>(null);
 
   const smoothingBuffer = useRef<{
     palmX: number[];
@@ -175,11 +179,16 @@ export function useHandTracking() {
       state.pinchJustStarted = state.pinching && !wasPinching;
       wasPinchingRef.current = state.pinching;
 
+      if (gesture !== 'peace') {
+        peaceStartTimeRef.current = null;
+        state.peaceHoldProgress = 0;
+        state.peaceTriggered = false;
+      }
+
       switch (gesture) {
         case 'open': {
-          // 1 palm = forward (W), 2 palms = backward (S). No strafe.
           state.moveX = 0;
-          state.moveZ = bothHandsOpen ? -1 : 1;
+          state.moveZ = (bothHandsOpen ? -1 : 1) * GESTURE_MOVE_MULTIPLIER;
           state.moveY = 0;
           state.lookYawSpeed = 0;
           state.lookPitchSpeed = 0;
@@ -196,16 +205,27 @@ export function useHandTracking() {
         case 'peace': {
           state.moveX = 0;
           state.moveZ = 0;
-          state.moveY = clamp(-mapToMovement(palmY), -1, 1);
+          state.moveY = 0;
           state.lookYawSpeed = 0;
           state.lookPitchSpeed = 0;
+          
+          const now = performance.now();
+          if (peaceStartTimeRef.current === null) {
+            peaceStartTimeRef.current = now;
+            state.peaceTriggered = false;
+          }
+          const elapsed = now - peaceStartTimeRef.current;
+          state.peaceHoldProgress = Math.min(elapsed / PEACE_HOLD_DURATION_MS, 1);
+          
+          if (state.peaceHoldProgress >= 1 && !state.peaceTriggered) {
+            state.peaceTriggered = true;
+          }
           break;
         }
         case 'pinch': {
           state.moveX = 0;
           state.moveZ = 0;
           state.moveY = 0;
-          // Pinch = turn/drag: use palm position to rotate view
           state.lookYawSpeed = -mapToMovement(palmX) * LOOK_SPEED_MULTIPLIER;
           state.lookPitchSpeed = -mapToMovement(palmY) * LOOK_SPEED_MULTIPLIER;
           break;
@@ -231,7 +251,10 @@ export function useHandTracking() {
       state.gesture = 'none';
       state.palmPosition = null;
       state.landmarks = null;
+      state.peaceHoldProgress = 0;
+      state.peaceTriggered = false;
       wasPinchingRef.current = false;
+      peaceStartTimeRef.current = null;
       smoothingBuffer.current = { palmX: [], palmY: [], tipX: [], tipY: [] };
     }
 
@@ -298,6 +321,7 @@ export function useHandTracking() {
     }
     handStateRef.current = { ...INITIAL_STATE };
     wasPinchingRef.current = false;
+    peaceStartTimeRef.current = null;
     smoothingBuffer.current = { palmX: [], palmY: [], tipX: [], tipY: [] };
   }, []);
 

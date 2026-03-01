@@ -71,9 +71,9 @@ export function MemorySplatViewer({ splatUrl, memories, handTrackingRef, resetVi
         group.position.set(memory.position.x, memory.position.y, memory.position.z);
         group.rotation.set(memory.rotation.x, memory.rotation.y, memory.rotation.z);
 
-        // Smaller frames that fit inside the world
-        const frameWidth = 0.6;
-        const frameHeight = 0.45;
+        // Frames sized for visibility in the world
+        const frameWidth = 0.95;
+        const frameHeight = 0.7;
         const frameDepth = 0.02;
         const borderWidth = 0.03;
 
@@ -154,37 +154,26 @@ export function MemorySplatViewer({ splatUrl, memories, handTrackingRef, resetVi
       }
       
       const START_POSITION = { x: 0, y: 0, z: 3 };
-      const MIN_DISTANCE_FROM_START = 4.5;
+      const MIN_DISTANCE_FROM_START = 2;   // Must walk a bit to find first ones
+      const MAX_DISTANCE_FROM_START = 5;  // Keep all within reach
 
       const positionedMemories = memoriesRef.current.map((mem, index) => {
         // Random angle anywhere in 360 degrees
         const angle = seededRandom(index * 7 + 1) * Math.PI * 2;
+        // Target distance from start: between MIN and MAX
+        const targetDist = MIN_DISTANCE_FROM_START + seededRandom(index * 13 + 2) * (MAX_DISTANCE_FROM_START - MIN_DISTANCE_FROM_START);
+        // Direction from start toward center-ish area
+        const dirX = Math.sin(angle);
+        const dirZ = Math.cos(angle);
+        const dirY = (seededRandom(index * 17 + 3) - 0.5) * 0.4;
+        const len = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ) || 1;
+        let x = START_POSITION.x + (dirX / len) * targetDist;
+        let z = START_POSITION.z + (dirZ / len) * targetDist;
+        let y = START_POSITION.y + (dirY / len) * targetDist;
+        y = Math.max(-1, Math.min(1.5, y));
         
-        // Random radius between 4 and 8 units from center
-        const radius = 4 + seededRandom(index * 13 + 2) * 4;
-        
-        // Random height between -1 and 1.5
-        const height = -1 + seededRandom(index * 17 + 3) * 2.5;
-        
-        // Calculate position
-        let x = Math.sin(angle) * radius;
-        let z = Math.cos(angle) * radius;
-        let y = height;
-
-        // Keep frames away from initial camera spawn so users explore first.
-        const dx = x - START_POSITION.x;
-        const dy = y - START_POSITION.y;
-        const dz = z - START_POSITION.z;
-        const distanceFromStart = Math.sqrt(dx * dx + dy * dy + dz * dz);
-        if (distanceFromStart < MIN_DISTANCE_FROM_START) {
-          const scale = MIN_DISTANCE_FROM_START / Math.max(distanceFromStart, 0.001);
-          x = START_POSITION.x + dx * scale;
-          y = START_POSITION.y + dy * scale;
-          z = START_POSITION.z + dz * scale;
-        }
-        
-        // Face toward center so user can see the frame
-        const faceAngle = Math.atan2(-x, -z);
+        // Face toward user start so they can see the frame
+        const faceAngle = Math.atan2(x - START_POSITION.x, z - START_POSITION.z);
         
         return {
           ...mem,

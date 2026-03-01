@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { SplatViewer } from './SplatViewer';
 import { HandTrackingOverlay } from './HandTrackingOverlay';
 import { useHandTracking } from '../hooks/useHandTracking';
@@ -45,8 +45,39 @@ export function WorldViewer({
   const isLastWorld = worldNumber >= maxWorlds;
   const [nearestKeyDistance, setNearestKeyDistance] = useState<number | null>(null);
   const [showKeyCollectAnimation, setShowKeyCollectAnimation] = useState(false);
+  const [peaceProgress, setPeaceProgress] = useState(0);
   const handTracking = useHandTracking();
   const resetViewRef = useRef<(() => void) | null>(null);
+  const peaceTriggeredRef = useRef(false);
+
+  useEffect(() => {
+    if (!handTracking.enabled) {
+      setPeaceProgress(0);
+      peaceTriggeredRef.current = false;
+      return;
+    }
+
+    let animFrame: number;
+    const checkPeaceState = () => {
+      const state = handTracking.handStateRef.current;
+      if (state) {
+        setPeaceProgress(state.peaceHoldProgress);
+        
+        if (state.peaceTriggered && !peaceTriggeredRef.current && !portalLocked && onPortalEnter) {
+          peaceTriggeredRef.current = true;
+          onPortalEnter();
+        }
+        
+        if (!state.peaceTriggered) {
+          peaceTriggeredRef.current = false;
+        }
+      }
+      animFrame = requestAnimationFrame(checkPeaceState);
+    };
+    
+    animFrame = requestAnimationFrame(checkPeaceState);
+    return () => cancelAnimationFrame(animFrame);
+  }, [handTracking.enabled, handTracking.handStateRef, portalLocked, onPortalEnter]);
   
   const handleProximityUpdate = useCallback((distance: number | null, _direction: { x: number; y: number; z: number } | null) => {
     setNearestKeyDistance(distance);
@@ -261,6 +292,43 @@ export function WorldViewer({
         </div>
       )}
 
+      {/* Peace sign portal indicator */}
+      {handTracking.enabled && peaceProgress > 0 && !portalLocked && (
+        <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-50">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative w-32 h-32">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="rgba(124, 109, 245, 0.2)"
+                  strokeWidth="6"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="rgba(124, 109, 245, 1)"
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={`${peaceProgress * 283} 283`}
+                  className="transition-all duration-100"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-4xl">✌️</span>
+              </div>
+            </div>
+            <span className="text-purple-300 text-sm tracking-wider font-medium bg-reverie-surface/80 backdrop-blur-sm px-4 py-2 rounded-full">
+              {peaceProgress < 1 ? 'Hold to enter portal...' : 'Entering!'}
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Portal hint - shown when splat viewer has interactive portal */}
       {splatUrl && onPortalEnter && (
         <div className={`fixed ${handTracking.enabled ? 'bottom-24' : 'bottom-6'} left-6 pointer-events-none transition-all duration-200`}>
@@ -275,7 +343,7 @@ export function WorldViewer({
             <div className="flex items-center gap-2 bg-reverie-surface/60 backdrop-blur-sm border border-purple-500/30 rounded-full px-4 py-2 animate-pulse">
               <span className="text-xl">🔓</span>
               <span className="text-purple-300 text-xs tracking-wider font-medium">
-                {isLastWorld ? 'Portal unlocked! Click to ESCAPE!' : 'Portal unlocked! Click to enter next room'}
+                {isLastWorld ? 'Portal unlocked! Click or hold peace sign to ESCAPE!' : 'Portal unlocked! Click or hold peace sign to enter next room'}
               </span>
             </div>
           )}

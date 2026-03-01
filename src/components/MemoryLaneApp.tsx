@@ -48,12 +48,32 @@ export function MemoryLaneApp() {
         throw new Error('Please upload at least one photo (not just videos)');
       }
 
-      // Analyze images with OpenAI Vision
-      const selectionResult = await selectSceneImages(images);
+      // Limit OpenAI Vision analysis to at most 3 random images.
+      const candidateIndices = images.map((_, i) => i);
+      for (let i = candidateIndices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [candidateIndices[i], candidateIndices[j]] = [candidateIndices[j], candidateIndices[i]];
+      }
+      const analysisIndices = candidateIndices.slice(0, Math.min(3, candidateIndices.length));
+      const analysisImages = analysisIndices.map((i) => images[i]);
+
+      if (images.length > 3) {
+        console.log('[MemoryLaneApp] Limiting OpenAI image analysis to 3 random images');
+      }
+
+      // Analyze selected images with OpenAI Vision
+      const selectionResult = await selectSceneImages(analysisImages);
+
+      // Convert selected indices from analysis subset -> original uploaded image indices
+      const mappedSelectedIndices = selectionResult.selectedIndices
+        .map((subsetIndex) => analysisIndices[subsetIndex])
+        .filter((i): i is number => Number.isInteger(i) && i >= 0 && i < images.length);
+      const finalSelectedIndices =
+        mappedSelectedIndices.length > 0 ? mappedSelectedIndices : [analysisIndices[0]];
       
       const memoryState: MemoryLaneState = {
         uploadedMedia: media,
-        selectedSceneIndices: selectionResult.selectedIndices,
+        selectedSceneIndices: finalSelectedIndices,
         themes: selectionResult.themes,
         worldPrompt: selectionResult.worldPrompt,
       };
@@ -62,7 +82,7 @@ export function MemoryLaneApp() {
       setState({ phase: 'generating', memoryState, prompt });
 
       // Get the selected images' data URLs
-      const selectedImageDataUrls = selectionResult.selectedIndices
+      const selectedImageDataUrls = finalSelectedIndices
         .map(i => images[i]?.dataUrl)
         .filter((url): url is string => !!url);
 
